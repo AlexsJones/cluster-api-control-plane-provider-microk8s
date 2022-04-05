@@ -1,0 +1,24 @@
+# permissions for end users to edit microk8scontrolplanes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: microk8scontrolplane-editor-role
+rules:
+- apiGroups:
+  - cluster.cluster.x-k8s.io
+  resources:
+  - microk8scontrolplanes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.cluster.x-k8s.io
+  resources:
+  - microk8scontrolplanes/status
+  verbs:
+  - get

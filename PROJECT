@@ -1,0 +1,16 @@
+domain: cluster.x-k8s.io
+layout:
+- go.kubebuilder.io/v3
+projectName: cluster-api-control-plane-provider-microk8s
+repo: cluster-api-control-plane-provider-microk8s
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: cluster
+  kind: MicroK8sControlPlane
+  path: cluster-api-control-plane-provider-microk8s/api/v1beta1
+  version: v1beta1
+version: "3"
