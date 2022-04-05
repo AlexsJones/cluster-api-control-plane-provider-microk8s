@@ -143,7 +143,7 @@ func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl
 
 		// Always attempt to update status.
 		if err := r.updateStatus(ctx, mcp, cluster); err != nil {
-			logger.Error(err, "failed to update TalosControlPlane Status")
+			logger.Error(err, "failed to update MicroK8sControlPlane Status")
 
 			reterr = kerrors.NewAggregate([]error{reterr, err})
 		}
@@ -173,7 +173,7 @@ func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl
 
 	//TODO: reconcile
 
-	return ctrl.Result{}, nil
+	return r.reconcile(ctx, cluster, mcp)
 }
 
 func (r *MicroK8sControlPlaneReconciler) reconcileDelete(ctx context.Context, cluster *clusterv1.Cluster,

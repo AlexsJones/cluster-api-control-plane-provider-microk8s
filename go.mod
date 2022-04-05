@@ -16,6 +16,7 @@ require (
 require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/gobuffalo/flect v0.2.4 // indirect
+	k8s.io/apiserver v0.23.5 // indirect
 )
 
 require (

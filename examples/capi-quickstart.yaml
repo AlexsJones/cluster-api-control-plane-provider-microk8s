@@ -78,29 +78,29 @@ spec:
     spec: 
       initConfiguration: {}
       joinConfiguration: {}
-# ---
-# apiVersion: cluster.x-k8s.io/v1beta1
-# kind: MachineDeployment
-# metadata:
-#   name: capi-quickstart-md-0
-#   namespace: default
-# spec:
-#   clusterName: capi-quickstart
-#   replicas: 3
-#   selector:
-#     matchLabels: null
-#   template:
-#     spec:
-#       bootstrap:
-#         configRef:
-#           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-#           kind: MicroK8sConfigTemplate
-#           name: capi-quickstart-md-0
-#           namespace: default
-#       clusterName: capi-quickstart
-#       infrastructureRef:
-#         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-#         kind: DockerMachineTemplate
-#         name: capi-quickstart-md-0
-#         namespace: default
-#       version: v1.23.3
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: capi-quickstart-md-0
+  namespace: default
+spec:
+  clusterName: capi-quickstart
+  replicas: 3
+  selector:
+    matchLabels: null
+  template:
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: MicroK8sConfigTemplate
+          name: capi-quickstart-md-0
+          namespace: default
+      clusterName: capi-quickstart
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: DockerMachineTemplate
+        name: capi-quickstart-md-0
+        namespace: default
+      version: v1.23.3
