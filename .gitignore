@@ -1,3 +1,4 @@
+__debug_bin
 cluster-api-control-plane-provider-microk8s
 # Binaries for programs and plugins
 *.exe
@@ -7,7 +8,7 @@ cluster-api-control-plane-provider-microk8s
 *.dylib
 bin
 testbin/*
-
+cluster.config
 # Test binary, build with `go test -c`
 *.test
 

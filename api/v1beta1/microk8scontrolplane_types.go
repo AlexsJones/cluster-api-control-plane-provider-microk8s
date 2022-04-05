@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -28,8 +29,8 @@ const (
 
 type ControlPlaneConfig struct {
 	// Deprecated: starting from cacppt v0.4.0 provider doesn't use init configs.
-	//	InitConfig         v1beta1.MicroK8sConfigSpec `json:"init,omitempty"`
-	//	ControlPlaneConfig v1beta1.MicroK8sConfigSpec `json:"controlplane"`
+	InitConfig         v1beta1.MicroK8sConfigSpec `json:"init,omitempty"`
+	ControlPlaneConfig v1beta1.MicroK8sConfigSpec `json:"controlplane"`
 }
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -46,6 +47,7 @@ type MicroK8sControlPlaneSpec struct {
 	// Version defines the desired Kubernetes version.
 	// +kubebuilder:validation:MinLength:=2
 	// +kubebuilder:validation:Pattern:=^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([-0-9a-zA-Z_\.+]*)?$
+	// +optional
 	Version string `json:"version"`
 
 	// InfrastructureTemplate is a required reference to a custom resource

@@ -6,9 +6,11 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - cluster.cluster.x-k8s.io
+  - bootstrap.cluster.x-k8s.io
+  - controlplane.cluster.x-k8s.io
+  - infrastructure.cluster.x-k8s.io
   resources:
-  - microk8scontrolplanes
+  - '*'
   verbs:
   - create
   - delete
@@ -18,16 +20,79 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cluster.cluster.x-k8s.io
+  - cluster.x-k8s.io
   resources:
-  - microk8scontrolplanes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - cluster.cluster.x-k8s.io
-  resources:
-  - microk8scontrolplanes/status
+  - clusters
+  - clusters/status
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machines
+  - machines/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: manager-role
+  namespace: kube-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac
+  resources:
+  - roles
+  verbs:
+  - create
+  - get
+  - list
+  - watch
