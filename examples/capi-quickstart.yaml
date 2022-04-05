@@ -44,6 +44,7 @@ spec:
     kind: DockerMachineTemplate
     name: capi-quickstart-control-plane
   replicas: 1
+  version: v1.23.0
   controlPlaneConfig: 
     controlplane: {}
 ---

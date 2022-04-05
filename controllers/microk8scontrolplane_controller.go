@@ -287,3 +287,12 @@ func (r *MicroK8sControlPlaneReconciler) getControlPlaneMachinesForCluster(ctx c
 
 	return machineList.Items, nil
 }
+
+func (r *MicroK8sControlPlaneReconciler) newControlPlane(cluster *clusterv1.Cluster, mcp *clusterv1beta1.MicroK8sControlPlane,
+	machines []clusterv1.Machine) *ControlPlane {
+	return &ControlPlane{
+		MCP:      mcp,
+		Cluster:  cluster,
+		Machines: machines,
+	}
+}
