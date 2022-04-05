@@ -24,6 +24,7 @@ import (
 	clusterv1beta1 "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -73,7 +74,7 @@ type MicroK8sControlPlaneReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, reterr error) {
 	logger := log.FromContext(ctx)
 	// Fetch the TalosControlPlane instance.
 	mcp := &clusterv1beta1.MicroK8sControlPlane{}
@@ -137,8 +138,75 @@ func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, nil
 	}
 
+	defer func() {
+		logger.Info("attempting to set control plane status")
+
+		// Always attempt to update status.
+		if err := r.updateStatus(ctx, mcp, cluster); err != nil {
+			logger.Error(err, "failed to update TalosControlPlane Status")
+
+			reterr = kerrors.NewAggregate([]error{reterr, err})
+		}
+
+		// Always attempt to Patch the MicroK8sControlPlane object and status after each reconciliation.
+		if err := patchMicroK8sControlPlane(ctx, patchHelper, mcp, patch.WithStatusObservedGeneration{}); err != nil {
+			logger.Error(err, "failed to patch MicroK8sControlPlane")
+			reterr = kerrors.NewAggregate([]error{reterr, err})
+		}
+
+		// TODO: remove this as soon as we have a proper remote cluster cache in place.
+		// Make TCP to requeue in case status is not ready, so we can check for node status without waiting for a full resync (by default 10 minutes).
+		// Only requeue if we are not going in exponential backoff due to error, or if we are not already re-queueing, or if the object has a deletion timestamp.
+		if reterr == nil && !res.Requeue && res.RequeueAfter <= 0 && mcp.ObjectMeta.DeletionTimestamp.IsZero() {
+			if !mcp.Status.Ready || mcp.Status.UnavailableReplicas > 0 {
+				res = ctrl.Result{RequeueAfter: 20 * time.Second}
+			}
+		}
+
+		logger.Info("successfully updated control plane status")
+	}()
+
+	if !mcp.ObjectMeta.DeletionTimestamp.IsZero() {
+		// Handle deletion reconciliation loop.
+		return r.reconcileDelete(ctx, cluster, mcp)
+	}
+
+	//TODO: reconcile
+
 	return ctrl.Result{}, nil
 }
+
+func (r *MicroK8sControlPlaneReconciler) reconcileDelete(ctx context.Context, cluster *clusterv1.Cluster,
+	tcp *clusterv1beta1.MicroK8sControlPlane) (ctrl.Result, error) {
+	// Get list of all control plane machines
+	ownedMachines, err := r.getControlPlaneMachinesForCluster(ctx, util.ObjectKey(cluster), tcp.Name)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// If no control plane machines remain, remove the finalizer
+	if len(ownedMachines) == 0 {
+		controllerutil.RemoveFinalizer(tcp, clusterv1beta1.MicroK8sControlPlaneFinalizer)
+		return ctrl.Result{}, r.Client.Update(ctx, tcp)
+	}
+
+	for _, ownedMachine := range ownedMachines {
+		// Already deleting this machine
+		if !ownedMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+			continue
+		}
+		// Submit deletion request
+		if err := r.Client.Delete(ctx, &ownedMachine); err != nil && !apierrors.IsNotFound(err) {
+
+			return ctrl.Result{}, err
+		}
+	}
+
+	conditions.MarkFalse(tcp, clusterv1beta1.ResizedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	// Requeue the deletion so we can check to make sure machines got cleaned up
+	return ctrl.Result{RequeueAfter: requeueDuration}, nil
+}
+
 func patchMicroK8sControlPlane(ctx context.Context, patchHelper *patch.Helper, tcp *clusterv1beta1.MicroK8sControlPlane, opts ...patch.Option) error {
 	// Always update the readyCondition by summarizing the state of other conditions.
 	conditions.SetSummary(tcp,
@@ -198,4 +266,24 @@ func (r *MicroK8sControlPlaneReconciler) ClusterToMicroK8sControlPlane(o client.
 	}
 
 	return nil
+}
+
+func (r *MicroK8sControlPlaneReconciler) getControlPlaneMachinesForCluster(ctx context.Context,
+	cluster client.ObjectKey, cpName string) ([]clusterv1.Machine, error) {
+	selector := map[string]string{
+		clusterv1.ClusterLabelName:             cluster.Name,
+		clusterv1.MachineControlPlaneLabelName: "",
+	}
+
+	machineList := clusterv1.MachineList{}
+	if err := r.Client.List(
+		ctx,
+		&machineList,
+		client.InNamespace(cluster.Namespace),
+		client.MatchingLabels(selector),
+	); err != nil {
+		return nil, err
+	}
+
+	return machineList.Items, nil
 }
