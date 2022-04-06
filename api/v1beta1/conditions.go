@@ -13,7 +13,7 @@ const (
 	// MachinesBootstrapped is tracking control planes bootstrap status.
 	MachinesBootstrapped clusterv1.ConditionType = "MachinesBootstrapped"
 
-	// WaitingForMachinesReason (Severity=Info) documents a TalosControlPlane bootstrap is waiting
+	// WaitingForMachinesReason (Severity=Info) documents a MicroK8sControlPlane bootstrap is waiting
 	// for all control plane nodes to be created.
 	WaitingForMachinesReason = "WaitingForMachines"
 )
@@ -23,9 +23,9 @@ const (
 	// and so the control plane is available and an API server instance is ready for processing requests.
 	AvailableCondition clusterv1.ConditionType = "Available"
 
-	// WaitingForTalosBootReason (Severity=Info) documents a TalosControlPlane object waiting for the first
+	// WaitingForMicroK8sBootReason (Severity=Info) documents a MicroK8sControlPlane object waiting for the first
 	// control plane instance to complete Talos boot sequence.
-	WaitingForTalosBootReason = "WaitingForTalosBoot"
+	WaitingForMicroK8sBootReason = "WaitingForMicroK8sBoot"
 
 	// InvalidControlPlaneConfigReason (Severity=Error) documents that controlplane config is invalid and the provider
 	// can not proceed with the bootstrap.
@@ -33,13 +33,13 @@ const (
 )
 
 const (
-	// ResizedCondition documents a TalosControlPlane that is resizing the set of controlled machines.
+	// ResizedCondition documents a MicroK8sControlPlane that is resizing the set of controlled machines.
 	ResizedCondition clusterv1.ConditionType = "Resized"
 
-	// ScalingUpReason (Severity=Info) documents a TalosControlPlane that is increasing the number of replicas.
+	// ScalingUpReason (Severity=Info) documents a MicroK8sControlPlane that is increasing the number of replicas.
 	ScalingUpReason = "ScalingUp"
 
-	// ScalingDownReason (Severity=Info) documents a TalosControlPlane that is decreasing the number of replicas.
+	// ScalingDownReason (Severity=Info) documents a MicroK8sControlPlane that is decreasing the number of replicas.
 	ScalingDownReason = "ScalingDown"
 )
 

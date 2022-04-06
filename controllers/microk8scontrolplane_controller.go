@@ -176,37 +176,6 @@ func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl
 	return r.reconcile(ctx, cluster, mcp)
 }
 
-func (r *MicroK8sControlPlaneReconciler) reconcileDelete(ctx context.Context, cluster *clusterv1.Cluster,
-	tcp *clusterv1beta1.MicroK8sControlPlane) (ctrl.Result, error) {
-	// Get list of all control plane machines
-	ownedMachines, err := r.getControlPlaneMachinesForCluster(ctx, util.ObjectKey(cluster), tcp.Name)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// If no control plane machines remain, remove the finalizer
-	if len(ownedMachines) == 0 {
-		controllerutil.RemoveFinalizer(tcp, clusterv1beta1.MicroK8sControlPlaneFinalizer)
-		return ctrl.Result{}, r.Client.Update(ctx, tcp)
-	}
-
-	for _, ownedMachine := range ownedMachines {
-		// Already deleting this machine
-		if !ownedMachine.ObjectMeta.DeletionTimestamp.IsZero() {
-			continue
-		}
-		// Submit deletion request
-		if err := r.Client.Delete(ctx, &ownedMachine); err != nil && !apierrors.IsNotFound(err) {
-
-			return ctrl.Result{}, err
-		}
-	}
-
-	conditions.MarkFalse(tcp, clusterv1beta1.ResizedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
-	// Requeue the deletion so we can check to make sure machines got cleaned up
-	return ctrl.Result{RequeueAfter: requeueDuration}, nil
-}
-
 func patchMicroK8sControlPlane(ctx context.Context, patchHelper *patch.Helper, tcp *clusterv1beta1.MicroK8sControlPlane, opts ...patch.Option) error {
 	// Always update the readyCondition by summarizing the state of other conditions.
 	conditions.SetSummary(tcp,

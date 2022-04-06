@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
@@ -20,6 +21,8 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (r *MicroK8sControlPlaneReconciler) reconcile(ctx context.Context,
@@ -132,14 +135,14 @@ func (r *MicroK8sControlPlaneReconciler) reconcileMachines(ctx context.Context,
 
 		log.Info("scaling down control plane", "Desired", desiredReplicas, "Existing", numMachines)
 
-		// res, err = r.scaleDownControlPlane(ctx, tcp, util.ObjectKey(cluster), controlPlane.MCP.Name, machines)
-		// if err != nil {
-		// 	if res.Requeue || res.RequeueAfter > 0 {
-		// 		log.Info("failed to scale down control plane", "error", err)
+		res, err = r.scaleDownControlPlane(ctx, mcp, util.ObjectKey(cluster), controlPlane.MCP.Name, machines)
+		if err != nil {
+			if res.Requeue || res.RequeueAfter > 0 {
+				log.Info("failed to scale down control plane", "error", err)
 
-		// 		return res, nil
-		// 	}
-		// }
+				return res, nil
+			}
+		}
 
 		return res, err
 	default:
@@ -150,7 +153,7 @@ func (r *MicroK8sControlPlaneReconciler) reconcileMachines(ctx context.Context,
 
 		if !mcp.Status.Bootstrapped {
 			if err := r.bootstrapCluster(ctx, mcp, cluster, machines); err != nil {
-				conditions.MarkFalse(mcp, clusterv1beta1.MachinesBootstrapped, clusterv1beta1.WaitingForTalosBootReason, clusterv1.ConditionSeverityInfo, err.Error())
+				conditions.MarkFalse(mcp, clusterv1beta1.MachinesBootstrapped, clusterv1beta1.WaitingForMicroK8sBootReason, clusterv1.ConditionSeverityInfo, err.Error())
 
 				log.Info("bootstrap failed, retrying in 20 seconds", "error", err)
 
@@ -276,7 +279,7 @@ func (r *MicroK8sControlPlaneReconciler) bootControlPlane(ctx context.Context, c
 func (r *MicroK8sControlPlaneReconciler) reconcileConditions(ctx context.Context, cluster *clusterv1.Cluster, tcp *clusterv1beta1.MicroK8sControlPlane,
 	machines []clusterv1.Machine) (result ctrl.Result, err error) {
 	if !conditions.Has(tcp, clusterv1beta1.AvailableCondition) {
-		conditions.MarkFalse(tcp, clusterv1beta1.AvailableCondition, clusterv1beta1.WaitingForTalosBootReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(tcp, clusterv1beta1.AvailableCondition, clusterv1beta1.WaitingForMicroK8sBootReason, clusterv1.ConditionSeverityInfo, "")
 	}
 
 	if !conditions.Has(tcp, clusterv1beta1.MachinesBootstrapped) {
@@ -297,6 +300,37 @@ func (r *MicroK8sControlPlaneReconciler) getFailureDomain(ctx context.Context, c
 		retList = append(retList, key)
 	}
 	return retList
+}
+
+func (r *MicroK8sControlPlaneReconciler) reconcileDelete(ctx context.Context, cluster *clusterv1.Cluster,
+	tcp *clusterv1beta1.MicroK8sControlPlane) (ctrl.Result, error) {
+	// Get list of all control plane machines
+	ownedMachines, err := r.getControlPlaneMachinesForCluster(ctx, util.ObjectKey(cluster), tcp.Name)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// If no control plane machines remain, remove the finalizer
+	if len(ownedMachines) == 0 {
+		controllerutil.RemoveFinalizer(tcp, clusterv1beta1.MicroK8sControlPlaneFinalizer)
+		return ctrl.Result{}, r.Client.Update(ctx, tcp)
+	}
+
+	for _, ownedMachine := range ownedMachines {
+		// Already deleting this machine
+		if !ownedMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+			continue
+		}
+		// Submit deletion request
+		if err := r.Client.Delete(ctx, &ownedMachine); err != nil && !apierrors.IsNotFound(err) {
+
+			return ctrl.Result{}, err
+		}
+	}
+
+	conditions.MarkFalse(tcp, clusterv1beta1.ResizedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	// Requeue the deletion so we can check to make sure machines got cleaned up
+	return ctrl.Result{RequeueAfter: requeueDuration}, nil
 }
 
 func (r *MicroK8sControlPlaneReconciler) bootstrapCluster(ctx context.Context, tcp *clusterv1beta1.MicroK8sControlPlane,
@@ -326,4 +360,80 @@ func (r *MicroK8sControlPlaneReconciler) bootstrapCluster(ctx context.Context, t
 	}
 
 	return nil
+}
+
+func (r *MicroK8sControlPlaneReconciler) scaleDownControlPlane(ctx context.Context, tcp *clusterv1beta1.MicroK8sControlPlane,
+	cluster client.ObjectKey, cpName string, machines []clusterv1.Machine) (ctrl.Result, error) {
+	if len(machines) == 0 {
+		return ctrl.Result{}, fmt.Errorf("no machines found")
+	}
+
+	log.Info("Found control plane machines", "machines", len(machines))
+
+	kubeclient, err := r.kubeconfigForCluster(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: 20 * time.Second}, err
+	}
+
+	defer kubeclient.Close() //nolint:errcheck
+
+	deleteMachine := machines[0]
+	for _, machine := range machines {
+		if !machine.ObjectMeta.DeletionTimestamp.IsZero() {
+			log.Info("machine is in process of deletion", "machine", machine.Name)
+
+			node, err := kubeclient.CoreV1().Nodes().Get(ctx, machine.Status.NodeRef.Name, metav1.GetOptions{})
+			if err != nil {
+				// It's possible for the node to already be deleted in the workload cluster, so we just
+				// requeue if that's that case instead of throwing a scary error.
+				if apierrors.IsNotFound(err) {
+					return ctrl.Result{RequeueAfter: 20 * time.Second}, nil
+				}
+				return ctrl.Result{RequeueAfter: 20 * time.Second}, err
+			}
+
+			log.Info("Deleting node", "machine", machine.Name, "node", node.Name)
+
+			err = kubeclient.CoreV1().Nodes().Delete(ctx, node.Name, metav1.DeleteOptions{})
+			if err != nil {
+				return ctrl.Result{RequeueAfter: 20 * time.Second}, err
+			}
+
+			return ctrl.Result{RequeueAfter: 20 * time.Second}, nil
+		}
+
+		// do not allow scaling down until all nodes have nodeRefs
+		if machine.Status.NodeRef == nil {
+			log.Info("one of machines does not have NodeRef", "machine", machine.Name)
+
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+
+		if machine.CreationTimestamp.Before(&deleteMachine.CreationTimestamp) {
+			deleteMachine = machine
+		}
+	}
+
+	if deleteMachine.Status.NodeRef == nil {
+		return ctrl.Result{RequeueAfter: 20 * time.Second}, fmt.Errorf("%q machine does not have a nodeRef", deleteMachine.Name)
+	}
+
+	node := deleteMachine.Status.NodeRef
+
+	log.Info("deleting machine", "machine", deleteMachine.Name, "node", node.Name)
+
+	err = r.Client.Delete(ctx, &deleteMachine)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.Info("deleting node", "machine", deleteMachine.Name, "node", node.Name)
+
+	err = kubeclient.CoreV1().Nodes().Delete(ctx, node.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return ctrl.Result{RequeueAfter: 20 * time.Second}, err
+	}
+
+	// Requeue so that we handle any additional scaling.
+	return ctrl.Result{Requeue: true}, nil
 }
