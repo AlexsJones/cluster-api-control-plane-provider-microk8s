@@ -5,7 +5,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: microk8scontroplanes.controlplane.cluster.x-k8s.io
+  name: microk8scontrolplanes.controlplane.cluster.x-k8s.io
 spec:
   group: controlplane.cluster.x-k8s.io
   names:
@@ -13,19 +13,19 @@ spec:
     - cluster-api
     kind: MicroK8sControlPlane
     listKind: MicroK8sControlPlaneList
-    plural: microk8scontroplanes
+    plural: microk8scontrolplanes
     shortNames:
     - mcp
     singular: microk8scontrolplane
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: TalosControlPlane API Server is ready to receive requests
+    - description: MicroK8sControlPlane API Server is ready to receive requests
       jsonPath: .status.ready
       name: Ready
       type: boolean
     - description: This denotes whether or not the control plane has the uploaded
-        talos-config configmap
+        microk8s-config configmap
       jsonPath: .status.initialized
       name: Initialized
       type: boolean
@@ -64,8 +64,8 @@ spec:
             description: MicroK8sControlPlaneSpec defines the desired state of MicroK8sControlPlane
             properties:
               controlPlaneConfig:
-                description: ControlPlaneConfig is a two TalosConfigSpecs to use for
-                  initializing and joining machines to the control plane.
+                description: to use for initializing and joining machines to the control
+                  plane.
                 properties:
                   controlplane:
                     description: MicroK8sConfigSpec defines the desired state of MicroK8sConfig
@@ -185,8 +185,7 @@ spec:
                         type: object
                     type: object
                   init:
-                    description: 'Deprecated: starting from cacppt v0.4.0 provider
-                      doesn''t use init configs.'
+                    description: MicroK8sConfigSpec defines the desired state of MicroK8sConfig
                     properties:
                       clusterConfiguration:
                         description: 'INSERT ADDITIONAL SPEC FIELDS - desired state
@@ -305,42 +304,50 @@ spec:
                 required:
                 - controlplane
                 type: object
-              infrastructureTemplate:
-                description: InfrastructureTemplate is a required reference to a custom
-                  resource offered by an infrastructure provider.
+              machineTemplate:
+                description: 'EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
+                  NOTE: json tags are required.  Any new fields you add must have
+                  json tags for the fields to be serialized.'
                 properties:
-                  apiVersion:
-                    description: API version of the referent.
-                    type: string
-                  fieldPath:
-                    description: 'If referring to a piece of an object instead of
-                      an entire object, this string should contain a valid JSON/Go
-                      field access statement, such as desiredState.manifest.containers[2].
-                      For example, if the object reference is to a container within
-                      a pod, this would take on a value like: "spec.containers{name}"
-                      (where "name" refers to the name of the container that triggered
-                      the event) or if no container name is specified "spec.containers[2]"
-                      (container with index 2 in this pod). This syntax is chosen
-                      only to have some well-defined way of referencing a part of
-                      an object. TODO: this design is not final and this field is
-                      subject to change in the future.'
-                    type: string
-                  kind:
-                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                    type: string
-                  namespace:
-                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                    type: string
-                  resourceVersion:
-                    description: 'Specific resourceVersion to which this reference
-                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                    type: string
-                  uid:
-                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                    type: string
+                  infrastructureTemplate:
+                    description: InfrastructureTemplate is a required reference to
+                      a custom resource offered by an infrastructure provider.
+                    properties:
+                      apiVersion:
+                        description: API version of the referent.
+                        type: string
+                      fieldPath:
+                        description: 'If referring to a piece of an object instead
+                          of an entire object, this string should contain a valid
+                          JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                          For example, if the object reference is to a container within
+                          a pod, this would take on a value like: "spec.containers{name}"
+                          (where "name" refers to the name of the container that triggered
+                          the event) or if no container name is specified "spec.containers[2]"
+                          (container with index 2 in this pod). This syntax is chosen
+                          only to have some well-defined way of referencing a part
+                          of an object. TODO: this design is not final and this field
+                          is subject to change in the future.'
+                        type: string
+                      kind:
+                        description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                        type: string
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                        type: string
+                      namespace:
+                        description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                        type: string
+                      resourceVersion:
+                        description: 'Specific resourceVersion to which this reference
+                          is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                        type: string
+                      uid:
+                        description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                        type: string
+                    type: object
+                required:
+                - infrastructureTemplate
                 type: object
               replicas:
                 format: int32
@@ -351,8 +358,8 @@ spec:
                 pattern: ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([-0-9a-zA-Z_\.+]*)?$
                 type: string
             required:
-            - controlPlaneConfig
-            - infrastructureTemplate
+            - machineTemplate
+            - version
             type: object
           status:
             description: MicroK8sControlPlaneStatus defines the observed state of

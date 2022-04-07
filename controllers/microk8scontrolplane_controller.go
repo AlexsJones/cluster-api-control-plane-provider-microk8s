@@ -76,7 +76,7 @@ type MicroK8sControlPlaneReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *MicroK8sControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, reterr error) {
 	logger := log.FromContext(ctx)
-	// Fetch the TalosControlPlane instance.
+
 	mcp := &clusterv1beta1.MicroK8sControlPlane{}
 	if err := r.APIReader.Get(ctx, req.NamespacedName, mcp); err != nil {
 		if apierrors.IsNotFound(err) {

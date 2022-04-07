@@ -12,3 +12,6 @@ clusterctl init --infrastructure docker
 kubectl delete namespace capi-kubeadm-bootstrap-system
 kubectl delete namespace capi-kubeadm-control-plane-system
 make install
+cd ../cluster-api-bootstrap-provider-microk8s
+make install
+cd ../cluster-api-control-plane-provider-microk8s

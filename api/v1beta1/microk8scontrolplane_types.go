@@ -28,13 +28,17 @@ const (
 )
 
 type ControlPlaneConfig struct {
-	// Deprecated: starting from cacppt v0.4.0 provider doesn't use init configs.
 	InitConfig         v1beta1.MicroK8sConfigSpec `json:"init,omitempty"`
 	ControlPlaneConfig v1beta1.MicroK8sConfigSpec `json:"controlplane"`
 }
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type MachineTemplate struct {
+	// InfrastructureTemplate is a required reference to a custom resource
+	// offered by an infrastructure provider.
+	InfrastructureTemplate corev1.ObjectReference `json:"infrastructureTemplate"`
+}
 
 // MicroK8sControlPlaneSpec defines the desired state of MicroK8sControlPlane
 type MicroK8sControlPlaneSpec struct {
@@ -49,12 +53,10 @@ type MicroK8sControlPlaneSpec struct {
 	// +kubebuilder:validation:Pattern:=^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([-0-9a-zA-Z_\.+]*)?$
 	Version string `json:"version"`
 
-	// InfrastructureTemplate is a required reference to a custom resource
-	// offered by an infrastructure provider.
-	InfrastructureTemplate corev1.ObjectReference `json:"infrastructureTemplate"`
+	MachineTemplate `json:"machineTemplate"`
 
-	// ControlPlaneConfig is a two TalosConfigSpecs
 	// to use for initializing and joining machines to the control plane.
+	// +optional
 	ControlPlaneConfig ControlPlaneConfig `json:"controlPlaneConfig"`
 }
 
@@ -123,7 +125,7 @@ type MicroK8sControlPlaneStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=microk8scontroplanes,shortName=mcp,scope=Namespaced,categories=cluster-api
+// +kubebuilder:resource:path=microk8scontrolplanes,shortName=mcp,scope=Namespaced,categories=cluster-api
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
