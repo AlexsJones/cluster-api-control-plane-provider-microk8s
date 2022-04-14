@@ -25,6 +25,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+type errServiceUnhealthy struct {
+	service string
+	reason  string
+}
+
+func (e *errServiceUnhealthy) Error() string {
+	return fmt.Sprintf("Service %s is unhealthy: %s", e.service, e.reason)
+}
+
 func (r *MicroK8sControlPlaneReconciler) reconcile(ctx context.Context,
 	cluster *clusterv1.Cluster, tcp *clusterv1beta1.MicroK8sControlPlane) (res ctrl.Result, err error) {
 	log.Info("reconcile MicroK8sControlPlane")
@@ -66,7 +75,7 @@ func (r *MicroK8sControlPlaneReconciler) reconcile(ctx context.Context,
 	for _, phase := range []func(context.Context, *clusterv1.Cluster, *clusterv1beta1.MicroK8sControlPlane,
 		[]clusterv1.Machine) (ctrl.Result, error){
 		// r.reconcileEtcdMembers,
-		// r.reconcileNodeHealth,
+		r.reconcileNodeHealth,
 		r.reconcileConditions,
 		// r.reconcileKubeconfig,
 		r.reconcileMachines,
@@ -79,7 +88,30 @@ func (r *MicroK8sControlPlaneReconciler) reconcile(ctx context.Context,
 		result = util.LowestNonZeroResult(result, phaseResult)
 	}
 
+	if !result.Requeue {
+		conditions.MarkTrue(cluster, clusterv1.ControlPlaneInitializedCondition)
+	}
+
 	return result, errs
+}
+
+func (r *MicroK8sControlPlaneReconciler) reconcileNodeHealth(ctx context.Context, cluster *clusterv1.Cluster, mcp *clusterv1beta1.MicroK8sControlPlane, machines []clusterv1.Machine) (result ctrl.Result, err error) {
+	if err := r.nodesHealthcheck(ctx, mcp, cluster, machines); err != nil {
+		reason := clusterv1beta1.ControlPlaneComponentsInspectionFailedReason
+
+		if errors.Is(err, &errServiceUnhealthy{}) {
+			reason = clusterv1beta1.ControlPlaneComponentsUnhealthyReason
+		}
+
+		conditions.MarkFalse(mcp, clusterv1beta1.ControlPlaneComponentsHealthyCondition, reason,
+			clusterv1.ConditionSeverityWarning, err.Error())
+
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
+	} else {
+		conditions.MarkTrue(mcp, clusterv1beta1.ControlPlaneComponentsHealthyCondition)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *MicroK8sControlPlaneReconciler) reconcileMachines(ctx context.Context,
@@ -257,6 +289,7 @@ func (r *MicroK8sControlPlaneReconciler) bootControlPlane(ctx context.Context, c
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
+			//WARNING: This is a work around, I dont know how this is supposed to be set
 		},
 	}
 
