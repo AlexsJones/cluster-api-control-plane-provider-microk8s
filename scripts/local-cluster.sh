@@ -1,6 +1,6 @@
 # cat >> cluster.config << EOF
 # kind: Cluster
-# apiVersion: kind.x-k8s.io/v1alpha4
+# apiVersion: kind.x-k8s.io/v1beta1
 # nodes:
 # - role: control-plane
 #   extraMounts:
@@ -14,7 +14,7 @@ export AWS_NODE_MACHINE_TYPE=t3.medium
 export AWS_SSH_KEY_NAME=default
 kind create cluster
 #kind create cluster --config cluster.config
-clusterctl init --infrastructure aws
+clusterctl init --infrastructure aws --bootstrap "-" --control-plane "-"
 kubectl delete namespace capi-kubeadm-bootstrap-system
 kubectl delete namespace capi-kubeadm-control-plane-system
 make install

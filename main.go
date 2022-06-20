@@ -24,9 +24,11 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	bootstrapv1beta1 "github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s/api/v1beta1"
-	clusterv1beta1 "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
-	mcpcontroller "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/controllers"
+	"github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
+	"github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/controllers"
+
+	bootstrapv1beta1 "github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s/apis/v1beta1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -46,7 +48,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
-	utilruntime.Must(clusterv1beta1.AddToScheme(scheme))
+	utilruntime.Must(v1beta1.AddToScheme(scheme))
 
 	utilruntime.Must(bootstrapv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -56,8 +58,8 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8082", "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8083", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -82,7 +84,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mcp := mcpcontroller.MicroK8sControlPlaneReconciler{
+	mcp := controllers.MicroK8sControlPlaneReconciler{
 		Client:    mgr.GetClient(),
 		APIReader: mgr.GetAPIReader(),
 		Scheme:    mgr.GetScheme(),
@@ -93,7 +95,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&clusterv1beta1.MicroK8sControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&v1beta1.MicroK8sControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "MicroK8sConfigTemplate")
 		os.Exit(1)
 	}

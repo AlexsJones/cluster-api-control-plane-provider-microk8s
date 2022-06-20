@@ -3,20 +3,22 @@ module github.com/AlexsJones/cluster-api-control-plane-provider-microk8s
 go 1.17
 
 require (
-	github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s v0.0.0-20220405083620-d2efbd3ad610
+	github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s v0.0.0-20220511083622-b3647739f72d
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/sirupsen/logrus v1.8.1
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
+	k8s.io/apiserver v0.23.5
 	k8s.io/client-go v0.23.5
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 
+replace github.com/AlexsJones/cluster-api-bootstrap-provider-microk8s => github.com/ktsakalozos/cluster-api-bootstrap-provider-microk8s v0.0.0-20220620194523-668a92209b50
+
 require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/gobuffalo/flect v0.2.4 // indirect
-	k8s.io/apiserver v0.23.5 // indirect
 )
 
 require (
@@ -75,7 +77,7 @@ require (
 	k8s.io/component-base v0.23.5 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
-	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/cluster-api v1.1.3
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect

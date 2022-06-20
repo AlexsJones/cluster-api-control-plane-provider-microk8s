@@ -8,6 +8,7 @@ import (
 	"time"
 
 	clusterv1beta1 "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -147,8 +148,7 @@ func (r *MicroK8sControlPlaneReconciler) reconcileMachines(ctx context.Context,
 
 		if numMachines == 1 {
 			conditions.MarkFalse(mcp, clusterv1beta1.ResizedCondition, clusterv1beta1.ScalingDownReason, clusterv1.ConditionSeverityError,
-				"Cannot scale down control plane nodes to 0",
-				desiredReplicas, numMachines)
+				"Cannot scale down control plane nodes to 0")
 
 			return res, nil
 		}

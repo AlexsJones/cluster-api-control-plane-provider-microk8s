@@ -4,6 +4,7 @@ import (
 	"context"
 
 	clusterv1beta1 "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
