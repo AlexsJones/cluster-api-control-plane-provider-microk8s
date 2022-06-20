@@ -4,6 +4,7 @@ import (
 	"context"
 
 	clusterv1beta1 "github.com/AlexsJones/cluster-api-control-plane-provider-microk8s/api/v1beta1"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,15 +53,14 @@ func (r *MicroK8sControlPlaneReconciler) updateStatus(ctx context.Context,
 
 	kubeclient, err := r.kubeconfigForCluster(ctx, util.ObjectKey(cluster))
 	if err != nil {
-		log.Info("failed to get kubeconfig for the cluster", "error", err)
-
+		log.Info("failed to get kubeconfig for the cluster", " error ", err)
 		return nil
 	}
 
 	defer kubeclient.Close() //nolint:errcheck
 
 	nodeSelector := labels.NewSelector()
-	req, err := labels.NewRequirement("node-role.kubernetes.io/master", selection.Exists, []string{})
+	req, err := labels.NewRequirement("node.kubernetes.io/microk8s-controlplane", selection.Exists, []string{})
 	if err != nil {
 		return err
 	}
@@ -75,8 +75,28 @@ func (r *MicroK8sControlPlaneReconciler) updateStatus(ctx context.Context,
 		return nil
 	}
 
+	// TODO: this is ugly and not in the right place. We need a better way to update the ProviderID
+	// in each node because MicroK8s is not doing that by default.
 	for _, node := range nodes.Items {
 		if util.IsNodeReady(&node) {
+			log.Info(node.Spec.ProviderID)
+			if node.Spec.ProviderID == "" {
+				for _, address := range node.Status.Addresses {
+					for _, machine := range ownedMachines {
+						for _, maddress := range machine.Status.Addresses {
+							if maddress.Address == address.Address {
+								node.Spec.ProviderID = *machine.Spec.ProviderID
+								_, err := kubeclient.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
+								if err != nil {
+									log.Info("failed to update node", " error ", err)
+									return nil
+								}
+							}
+						}
+					}
+				}
+			}
+
 			mcp.Status.ReadyReplicas++
 		}
 	}
@@ -92,7 +112,7 @@ func (r *MicroK8sControlPlaneReconciler) updateStatus(ctx context.Context,
 		mcp.Status.Ready = true
 	}
 
-	log.Info("ready replicas", "count", mcp.Status.ReadyReplicas)
+	log.Info("ready replicas", " count ", mcp.Status.ReadyReplicas)
 
 	return nil
 }
